@@ -17,9 +17,15 @@ class LoginController extends AbstractLoginController
      * base authentication view component. React will take over at this point and
      * turn the login area into an SPA.
      */
-    public function index(): View
+    public function index()
     {
-        return view('templates/auth.core');
+        $oauthredirect = env('OAUTH_LOGIN_REDIRECT');
+        if (!$oauthredirect) {
+            return view('templates/auth.core');
+        }else {
+            return redirect()->route('auth.oauth.redirect', [ 'driver' => $oauthredirect ]);
+        }
+
     }
 
     /**
