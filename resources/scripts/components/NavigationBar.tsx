@@ -44,7 +44,7 @@ export default () => {
         setIsLoggingOut(true);
         http.post('/auth/logout').finally(() => {
             // @ts-expect-error this is valid
-            window.location = '/';
+            window.location = '/auth/logout';
         });
     };
 
