@@ -23,6 +23,21 @@ class LoginController extends AbstractLoginController
     }
 
     /**
+     * Handles the page displayed after logout.
+     * Either it redirects to the login page or to the oauth logout page defined by environment variable 
+     */ 
+    public function getLogout()
+    {
+        $oauthredirect = env('OAUTH_LOGOUT_REDIRECT_URL');
+        if (!$oauthredirect) {
+            return redirect()->route('auth.login');
+        }else {
+            return redirect($oauthredirect);
+        }
+
+    }
+
+    /**
      * Handle a login request to the application.
      *
      * @throws \App\Exceptions\DisplayException
