@@ -54,11 +54,12 @@ class OAuthController extends Controller
         // creating the user if none was found (User Provisioning)
         if (!$user && env('OAUTH_USER_PROVISIONING') == 'true') {
             $userdata = [
-                'username' => $oauthUser->getId(),
+                'username' => $oauthUser->getNickname(),
                 'email' => $oauthUser->getEmail(),
                 'name_first' => str_split($oauthUser->getName())[0],
                 'name_last' => str_split($oauthUser->getName())[1],
                 'oauth' => [$driver => $oauthUser->getId()],
+                'external_id' => $oauthUser->getId()
             ];
 
             $user = $this->creationService->handle($userdata);
