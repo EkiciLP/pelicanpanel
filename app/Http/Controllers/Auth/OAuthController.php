@@ -60,7 +60,7 @@ class OAuthController extends Controller
             return redirect(EditProfile::getUrl(['tab' => '-oauth-tab']));
         }
 
-        $user = User::query()->whereJsonContains('oauth->'. $driver, $oauthUser->getId())->first();
+        $user = User::query()->whereJsonContains('oauth->'. $driver, $oauthUser->getId())->firstOrFail();
 
         // creating the user if none was found (User Provisioning)
         if (!$user && env('OAUTH_USER_PROVISIONING') == 'true') {
@@ -74,10 +74,9 @@ class OAuthController extends Controller
             ];
 
             $user = $this->creationService->handle($userdata);
-        }else if (!$user) {
-        try {
-            $user = User::query()->whereJsonContains('oauth->'. $driver, $oauthUser->getId())->firstOrFail();
+        }
 
+        try {
             $this->auth->guard()->login($user, true);
         } catch (Exception) {
             // No user found - redirect to normal login
@@ -89,8 +88,6 @@ class OAuthController extends Controller
 
             return redirect()->route('auth.login');
         }
-
-        $this->auth->guard()->login($user, true);
 
         return redirect('/');
     }
