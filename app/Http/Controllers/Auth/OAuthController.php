@@ -30,13 +30,10 @@ class OAuthController extends Controller
      */
     protected function redirect(string $driver): RedirectResponse
     {
-        /*
-        !!!Disabled because of personal oauth implementation
         // Driver is disabled - redirect to normal login
         if (!config("auth.oauth.$driver.enabled")) {
             return redirect()->route('auth.login');
         }
-            */
 
         return Socialite::with($driver)->redirect();
     }
