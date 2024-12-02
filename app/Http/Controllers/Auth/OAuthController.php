@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Filament\Resources\UserResource\Pages\EditProfile;
+use Filament\Notifications\Notification;
 use App\Services\Users\UserCreationService;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Http\RedirectResponse;
@@ -21,14 +23,18 @@ class OAuthController extends Controller
         private AuthManager $auth,
         private UserUpdateService $updateService,
         private UserCreationService $creationService
-    ) {
-    }
+    ) {}
 
     /**
      * Redirect user to the OAuth provider
      */
     protected function redirect(string $driver): RedirectResponse
     {
+        // Driver is disabled - redirect to normal login
+        if (!config("auth.oauth.$driver.enabled")) {
+            return redirect()->route('auth.login');
+        }
+
         return Socialite::with($driver)->redirect();
     }
 
@@ -37,6 +43,11 @@ class OAuthController extends Controller
      */
     protected function callback(Request $request, string $driver): RedirectResponse
     {
+        // Driver is disabled - redirect to normal login
+        if (!config("auth.oauth.$driver.enabled")) {
+            return redirect()->route('auth.login');
+        }
+
         $oauthUser = Socialite::driver($driver)->user();
 
         // User is already logged in and wants to link a new OAuth Provider
@@ -46,7 +57,7 @@ class OAuthController extends Controller
 
             $this->updateService->handle($request->user(), ['oauth' => $oauth]);
 
-            return redirect()->route('account');
+            return redirect(EditProfile::getUrl(['tab' => '-oauth-tab']));
         }
 
         $user = User::query()->whereJsonContains('oauth->'. $driver, $oauthUser->getId())->first();
@@ -64,7 +75,18 @@ class OAuthController extends Controller
 
             $user = $this->creationService->handle($userdata);
         }else if (!$user) {
+        try {
+            $user = User::query()->whereJsonContains('oauth->'. $driver, $oauthUser->getId())->firstOrFail();
+
+            $this->auth->guard()->login($user, true);
+        } catch (Exception) {
             // No user found - redirect to normal login
+            Notification::make()
+                ->title('No linked User found')
+                ->danger()
+                ->persistent()
+                ->send();
+
             return redirect()->route('auth.login');
         }
 
