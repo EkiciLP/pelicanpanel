@@ -3,12 +3,12 @@
 namespace App\Filament\Pages\Installer;
 
 use App\Filament\Pages\Dashboard;
-use App\Filament\Pages\Installer\Steps\AdminUserStep;
-use App\Filament\Pages\Installer\Steps\CompletedStep;
+use App\Filament\Pages\Installer\Steps\CacheStep;
 use App\Filament\Pages\Installer\Steps\DatabaseStep;
 use App\Filament\Pages\Installer\Steps\EnvironmentStep;
-use App\Filament\Pages\Installer\Steps\RedisStep;
+use App\Filament\Pages\Installer\Steps\QueueStep;
 use App\Filament\Pages\Installer\Steps\RequirementsStep;
+use App\Filament\Pages\Installer\Steps\SessionStep;
 use App\Models\User;
 use App\Services\Users\UserCreationService;
 use App\Traits\CheckMigrationsTrait;
@@ -19,13 +19,10 @@ use Filament\Forms\Components\Wizard;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Pages\SimplePage;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Support\Exceptions\Halt;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
@@ -42,8 +39,6 @@ class PanelInstaller extends SimplePage implements HasForms
     public array $data = [];
 
     protected static string $view = 'filament.pages.installer';
-
-    private User $user;
 
     public function getMaxWidth(): MaxWidth|string
     {
@@ -70,10 +65,9 @@ class PanelInstaller extends SimplePage implements HasForms
                 RequirementsStep::make(),
                 EnvironmentStep::make($this),
                 DatabaseStep::make($this),
-                RedisStep::make($this)
-                    ->hidden(fn (Get $get) => $get('env_general.SESSION_DRIVER') != 'redis' && $get('env_general.QUEUE_CONNECTION') != 'redis' && $get('env_general.CACHE_STORE') != 'redis'),
-                AdminUserStep::make($this),
-                CompletedStep::make(),
+                CacheStep::make($this),
+                QueueStep::make($this),
+                SessionStep::make(),
             ])
                 ->persistStepInQueryString()
                 ->nextAction(fn (Action $action) => $action->keyBindings('enter'))
@@ -95,23 +89,33 @@ class PanelInstaller extends SimplePage implements HasForms
         return 'data';
     }
 
-    public function submit(): Redirector|RedirectResponse
+    public function submit(UserCreationService $userCreationService): void
     {
-        // Disable installer
-        $this->writeToEnvironment(['APP_INSTALLED' => 'true']);
+        try {
+            // Disable installer
+            $this->writeToEnvironment(['APP_INSTALLED' => 'true']);
 
-        // Login user
-        $this->user ??= User::all()->filter(fn ($user) => $user->isRootAdmin())->first();
-        auth()->guard()->login($this->user, true);
+            // Run migrations
+            $this->runMigrations();
 
-        // Redirect to admin panel
-        return redirect(Dashboard::getUrl());
+            // Create admin user & login
+            $user = $this->createAdminUser($userCreationService);
+            auth()->guard()->login($user, true);
+
+            // Write session data at the very end to avoid "page expired" errors
+            $this->writeToEnv('env_session');
+
+            // Redirect to admin panel
+            $this->redirect(Dashboard::getUrl());
+        } catch (Halt) {
+        }
     }
 
     public function writeToEnv(string $key): void
     {
         try {
             $variables = array_get($this->data, $key);
+            $variables = array_filter($variables); // Filter array to remove NULL values
             $this->writeToEnvironment($variables);
         } catch (Exception $exception) {
             report($exception);
@@ -129,13 +133,12 @@ class PanelInstaller extends SimplePage implements HasForms
         Artisan::call('config:clear');
     }
 
-    public function runMigrations(string $driver): void
+    public function runMigrations(): void
     {
         try {
             Artisan::call('migrate', [
                 '--force' => true,
                 '--seed' => true,
-                '--database' => $driver,
             ]);
         } catch (Exception $exception) {
             report($exception);
@@ -161,12 +164,13 @@ class PanelInstaller extends SimplePage implements HasForms
         }
     }
 
-    public function createAdminUser(UserCreationService $userCreationService): void
+    public function createAdminUser(UserCreationService $userCreationService): User
     {
         try {
             $userData = array_get($this->data, 'user');
             $userData['root_admin'] = true;
-            $this->user = $userCreationService->handle($userData);
+
+            return $userCreationService->handle($userData);
         } catch (Exception $exception) {
             report($exception);
 

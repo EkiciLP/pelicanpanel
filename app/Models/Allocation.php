@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Carbon\Carbon|null $updated_at
  * @property string $alias
  * @property bool $has_alias
+ * @property string $address
  * @property \App\Models\Server|null $server
  * @property \App\Models\Node $node
  *
@@ -36,14 +37,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|Allocation wherePort($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Allocation whereServerId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Allocation whereUpdatedAt($value)
- *
- * @mixin \Eloquent
  */
 class Allocation extends Model
 {
     /**
      * The resource name for this model when it is transformed into an
-     * API representation using fractal.
+     * API representation using fractal. Also used as name for api key permissions.
      */
     public const RESOURCE_NAME = 'allocation';
 
@@ -107,7 +106,7 @@ class Allocation extends Model
     protected function address(): Attribute
     {
         return Attribute::make(
-            get: fn () => "$this->ip:$this->port",
+            get: fn () => "$this->alias:$this->port",
         );
     }
 

@@ -49,7 +49,7 @@ class Node extends Model
 
     /**
      * The resource name for this model when it is transformed into an
-     * API representation using fractal.
+     * API representation using fractal. Also used as name for api key permissions.
      */
     public const RESOURCE_NAME = 'node';
 
@@ -241,6 +241,11 @@ class Node extends Model
     public function allocations(): HasMany
     {
         return $this->hasMany(Allocation::class);
+    }
+
+    public function databaseHosts(): HasMany
+    {
+        return $this->hasMany(DatabaseHost::class);
     }
 
     /**
