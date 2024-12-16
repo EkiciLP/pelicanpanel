@@ -4,7 +4,7 @@ namespace App\Filament\Server\Resources\ScheduleResource\Pages;
 
 use App\Filament\Server\Resources\ScheduleResource;
 use App\Models\Schedule;
-use App\Tables\Columns\DateTimeColumn;
+use App\Filament\Components\Tables\Columns\DateTimeColumn;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Tables\Actions\DeleteAction;
@@ -33,6 +33,7 @@ class ListSchedules extends ListRecords
                     ->sortable(),
                 DateTimeColumn::make('last_run_at')
                     ->label('Last run')
+                    ->placeholder('Never')
                     ->since()
                     ->sortable(),
                 DateTimeColumn::make('next_run_at')
