@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Filament\Resources\UserResource\Pages\EditProfile;
+use App\Filament\Pages\Auth\EditProfile;
 use Filament\Notifications\Notification;
 use App\Services\Users\UserCreationService;
 use Illuminate\Auth\AuthManager;
